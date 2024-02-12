@@ -1,0 +1,40 @@
+hostnamectl set-hostname master-node (on master)
+hostnamectl set-hostname worker-node-1 (on slave)
+
+On Master and on slave :
+vim /etc/hosts
+     	172.31.40.232 master-node
+   	172.31.35.133 worker-node-1
+setenforce 0
+reboot
+++++++++++++++++++++++++++++++
+cat <<EOF >> /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+++++++++++++++++++++++++++++++
+
+yum install -y docker kubelet-1.21.3 kubeadm-1.21.3 kubectl-1.21.3
+systemctl start kubelet docker
+systemctl enable docker kubelet
+
+On Master:
+kubeadm init --apiserver-advertise-address=172.31.10.129 --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem
+Copy the token and run on worker nodes to add them to cluster
+su - ec2-user ( exit as root user) 
+run as ec2-user:
+mkdir -p $HOME/.kube 
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config 
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+kubectl apply -f https://docs.projectcalico.org/v3.8/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
+kubectl get nodes
+
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+kubeadm token create --print-join-command
